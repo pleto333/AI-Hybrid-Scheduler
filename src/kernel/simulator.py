@@ -149,7 +149,7 @@ class OSSimulator:
 
         # 💡 [추가] 교수님 피티에 바로 캡처해서 넣을 수 있는 웅장한 종합 성능 리포트 출력
         print("\n" + "=" * 50)
-        print("📊 AM:PM AI 하이브리드 스케줄러 최종 성능 리포트")
+        print("📊 AI 하이브리드 스케줄러 최종 성능 리포트")
         print("=" * 50)
         print(f"🧪  워크로드 시나리오    : {self.scenario}")
         print(f"⚙️  스케줄링 정책      : {self.scheduler_policy}")
