@@ -10,6 +10,7 @@ LABEL = 'target_core'
 # 파이썬 기본 모듈인 os를 사용하여 경로를 계산합니다.
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DATA_PATH = os.path.join(BASE_DIR, "data", "workload_log.csv")
+METRICS_PATH = os.path.join(BASE_DIR, "data", "metrics_report.csv")
 MODEL_PATH = os.path.join(BASE_DIR, "models", "scheduler_model.pkl")
 
 # 디렉토리 자동 생성

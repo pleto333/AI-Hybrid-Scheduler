@@ -1,3 +1,5 @@
+import csv
+import os
 import random
 
 from .hardware import PCore, ECore
@@ -7,16 +9,19 @@ from .workload import TaskGenerator
 from .pcb import Process
 from .logger import SystemLogger
 
-from common.config import DATA_PATH
+from common.config import DATA_PATH, METRICS_PATH
 
 
 class OSSimulator:
-    def __init__(self):
+    def __init__(self, scenario="mixed", task_spawn_rate=0.15):
         self.cores = [PCore("P0"), PCore("P1"), ECore("E0"), ECore("E1")]
         self.ready_queue = []
         self.scheduler = HybridScheduler()
         self.logger = SystemLogger()
         self.tick = 0
+        self.scenario = scenario
+        self.task_spawn_rate = task_spawn_rate
+        self.assignment_counts = {"P": 0, "E": 0}
 
         # [추가] 시뮬레이션 전체에서 소모한 총 전력량 (0 W로 시작)
         self.total_power_consumed = 0
@@ -25,11 +30,11 @@ class OSSimulator:
         self.completed_tasks = []
 
     def run(self, max_ticks=500):
-        print(">>> Simulator Running...")
+        print(f">>> Simulator Running... scenario={self.scenario}, ticks={max_ticks}")
         while self.tick < max_ticks:
             # 1. 태스크 생성
-            if random.random() < 0.15:
-                new_proc = Process(*TaskGenerator.generate_random_task())
+            if random.random() < self.task_spawn_rate:
+                new_proc = Process(*TaskGenerator.generate_random_task(self.scenario))
 
                 # 💡 [추가] 성우가 Process 클래스에 만든 생성시간 변수명이 뭔지 몰라도
                 # 여기서 안전하게 현재 틱(self.tick)을 대피용 속성으로 무조건 저장해둠!
@@ -59,6 +64,7 @@ class OSSimulator:
                         Dispatcher.dispatch(proc, core)
                         assigned = True
                         assigned_core = core
+                        self.assignment_counts[core.core_type] += 1
                         break
 
                 # 시도 2 (Work Stealing): 추천 코어가 꽉 차있는데 다른 코어가 놀고 있다면?
@@ -69,6 +75,7 @@ class OSSimulator:
                     self.ready_queue.remove(proc)
                     Dispatcher.dispatch(proc, fallback_core)
                     assigned_core = fallback_core
+                    self.assignment_counts[fallback_core.core_type] += 1
 
                 # 로깅: 모델 학습을 위해 EDP 기반의 '이상적인 정답'을 기록
                 ideal_target = self.scheduler.calculate_ideal_core(proc)
@@ -114,13 +121,40 @@ class OSSimulator:
             turnaround_times.append(duration)
 
         avg_turnaround = sum(turnaround_times) / len(turnaround_times) if turnaround_times else 0
+        total_assignments = sum(self.assignment_counts.values())
+        p_ratio = (self.assignment_counts["P"] / total_assignments * 100) if total_assignments else 0
+        e_ratio = (self.assignment_counts["E"] / total_assignments * 100) if total_assignments else 0
+        metrics = {
+            "scenario": self.scenario,
+            "total_ticks": self.tick,
+            "total_power_consumed": round(self.total_power_consumed, 2),
+            "completed_tasks": len(self.completed_tasks),
+            "avg_turnaround_time": round(avg_turnaround, 2),
+            "p_core_assignments": self.assignment_counts["P"],
+            "e_core_assignments": self.assignment_counts["E"],
+            "p_core_ratio": round(p_ratio, 2),
+            "e_core_ratio": round(e_ratio, 2),
+        }
+        self.save_metrics(metrics)
 
         # 💡 [추가] 교수님 피티에 바로 캡처해서 넣을 수 있는 웅장한 종합 성능 리포트 출력
         print("\n" + "=" * 50)
         print("📊 AM:PM AI 하이브리드 스케줄러 최종 성능 리포트")
         print("=" * 50)
+        print(f"🧪  워크로드 시나리오    : {self.scenario}")
         print(f"⏱️  총 시뮬레이션 시간 : {self.tick} Ticks")
         print(f"⚡  총 전력 소모량      : {self.total_power_consumed:,.1f} W")
         print(f"✅  처리 완료된 태스크  : {len(self.completed_tasks)} 개")
         print(f"📈  평균 턴어라운드 타임 : {avg_turnaround:.2f} Ticks")
+        print(f"🧠  P-Core 배정 비율    : {p_ratio:.1f}% ({self.assignment_counts['P']}개)")
+        print(f"🌱  E-Core 배정 비율    : {e_ratio:.1f}% ({self.assignment_counts['E']}개)")
+        print(f"💾  Metrics CSV 저장   : {METRICS_PATH}")
         print("=" * 50)
+
+    def save_metrics(self, metrics):
+        file_exists = os.path.exists(METRICS_PATH)
+        with open(METRICS_PATH, "a", newline="", encoding="utf-8") as file:
+            writer = csv.DictWriter(file, fieldnames=metrics.keys())
+            if not file_exists:
+                writer.writeheader()
+            writer.writerow(metrics)
