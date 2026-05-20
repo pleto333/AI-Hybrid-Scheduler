@@ -1,7 +1,21 @@
 import argparse
+import os
 
+from common.config import METRICS_PATH
 from kernel.simulator import OSSimulator
 from kernel.workload import TaskGenerator
+
+
+def reset_metrics():
+    paths = [
+        METRICS_PATH,
+        os.path.splitext(METRICS_PATH)[0] + ".html",
+    ]
+    for path in paths:
+        if os.path.exists(path):
+            os.remove(path)
+            print(f">>> Removed {path}")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI Hybrid Scheduler Simulator")
@@ -35,7 +49,15 @@ if __name__ == "__main__":
         default=42,
         help="동일 워크로드 재현을 위한 랜덤 시드",
     )
+    parser.add_argument(
+        "--reset-metrics",
+        action="store_true",
+        help="실행 전 metrics_report.csv/html을 삭제하고 새로 측정",
+    )
     args = parser.parse_args()
+
+    if args.reset_metrics:
+        reset_metrics()
 
     scenarios = TaskGenerator.available_scenarios() if args.scenario == "all" else [args.scenario]
     policies = OSSimulator.POLICIES if args.policy == "all" else [args.policy]
