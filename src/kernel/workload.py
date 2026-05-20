@@ -33,8 +33,9 @@ class TaskGenerator:
         return list(TaskGenerator.SCENARIOS.keys()) + ["mixed"]
 
     @staticmethod
-    def generate_random_task(scenario="mixed"):
+    def generate_random_task(scenario="mixed", rng=None):
         # (이름, 실행시간, CPU부하, 메모리접근, IO대기, FP비율)
+        rng = rng or random
         if scenario == "mixed":
             tasks = [
                 task
@@ -47,4 +48,4 @@ class TaskGenerator:
                 valid = ", ".join(TaskGenerator.available_scenarios())
                 raise ValueError(f"Unknown scenario: {scenario}. Available scenarios: {valid}")
 
-        return random.choice(tasks)
+        return rng.choice(tasks)

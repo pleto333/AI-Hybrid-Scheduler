@@ -11,6 +11,7 @@ venv/
 
 # Data & Models
 data/*.csv
+data/*.html
 models/*.pkl
 
 # Notebooks

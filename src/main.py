@@ -23,10 +23,29 @@ if __name__ == "__main__":
         default=0.15,
         help="각 tick마다 새 태스크가 생성될 확률",
     )
+    parser.add_argument(
+        "--policy",
+        choices=OSSimulator.POLICIES + ["all"],
+        default="ai",
+        help="비교할 스케줄링 정책",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="동일 워크로드 재현을 위한 랜덤 시드",
+    )
     args = parser.parse_args()
 
     scenarios = TaskGenerator.available_scenarios() if args.scenario == "all" else [args.scenario]
+    policies = OSSimulator.POLICIES if args.policy == "all" else [args.policy]
 
     for scenario in scenarios:
-        sim = OSSimulator(scenario=scenario, task_spawn_rate=args.spawn_rate)
-        sim.run(max_ticks=args.ticks)
+        for policy in policies:
+            sim = OSSimulator(
+                scenario=scenario,
+                task_spawn_rate=args.spawn_rate,
+                scheduler_policy=policy,
+                random_seed=args.seed,
+            )
+            sim.run(max_ticks=args.ticks)
