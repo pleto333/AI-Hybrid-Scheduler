@@ -26,6 +26,14 @@ class TaskGenerator:
             ("Telemetry_Upload", 50, 12, 25, 75, 0.0),
             ("Indexing_Idle", 90, 18, 55, 45, 0.05),
         ],
+        "trick_io_intensive": [
+            ("Heavy_IO_Compute", 200, 90, 20, 85, 0.8),
+            ("Disk_Backup_HighCPU", 250, 85, 15, 90, 0.7),
+        ],
+        "trick_memory_intensive": [
+            ("In-Memory_DB_Scan", 180, 75, 95, 5, 0.5),
+            ("Realtime_Data_Analysis", 220, 78, 98, 10, 0.6),
+        ]
     }
 
     @staticmethod
@@ -34,18 +42,28 @@ class TaskGenerator:
 
     @staticmethod
     def generate_random_task(scenario="mixed", rng=None):
-        # (이름, 실행시간, CPU부하, 메모리접근, IO대기, FP비율)
         rng = rng or random
+        
+        tasks_to_choose_from = []
         if scenario == "mixed":
-            tasks = [
-                task
-                for scenario_tasks in TaskGenerator.SCENARIOS.values()
-                for task in scenario_tasks
-            ]
+            tasks = [task for s_tasks in TaskGenerator.SCENARIOS.values() for task in s_tasks]
         else:
             tasks = TaskGenerator.SCENARIOS.get(scenario)
             if tasks is None:
                 valid = ", ".join(TaskGenerator.available_scenarios())
                 raise ValueError(f"Unknown scenario: {scenario}. Available scenarios: {valid}")
+        
+        base_task = rng.choice(tasks)
+        
+        # --- 현실적인 노이즈 주입 ---
+        # AI가 단순 규칙을 암기하지 못하도록, 생성될 때마다 각 수치에 약간의 변동을 줍니다.
+        name, burst, cpu, mem, io, fp = base_task
+        
+        # 각 수치를 -10% ~ +10% 범위 내에서 무작위로 변동
+        burst = int(burst * rng.uniform(0.9, 1.1))
+        cpu = max(0, min(100, int(cpu * rng.uniform(0.9, 1.1))))
+        mem = max(0, min(100, int(mem * rng.uniform(0.9, 1.1))))
+        io = max(0, min(100, int(io * rng.uniform(0.9, 1.1))))
+        fp = max(0.0, min(1.0, round(fp * rng.uniform(0.9, 1.1), 2)))
 
-        return rng.choice(tasks)
+        return name, burst, cpu, mem, io, fp

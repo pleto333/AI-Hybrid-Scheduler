@@ -24,22 +24,24 @@ class HybridScheduler:
         mem_access = process.features['mem_access_freq']
         io_wait = process.features['io_wait_time']
 
-        # I/O 및 메모리 대기 패널티 (코어 성능 무관)
-        penalty_time = (io_wait + mem_access) * 0.1
+        # --- EDP 공식 대수술 ---
+        # I/O 및 메모리 대기는 코어 성능과 무관한 고정 지연 시간이므로, 
+        # 패널티 가중치를 0.1에서 0.8로 대폭 상향하여 그 영향을 극대화.
+        non_compute_penalty = (io_wait + mem_access) * 0.8
 
         # --- P-Core 예상치 계산 ---
-        # 실행 시간 = (연산 시간 / P코어 속도) + 패널티 지연 시간
-        p_time = (burst / self.p_core_ref.multiplier) + penalty_time
+        # 실행 시간 = (순수 연산 시간 / P코어 속도) + 고정 지연 시간
+        p_time = (burst / self.p_core_ref.multiplier) + non_compute_penalty
         # 전력 소모 = (실행 시간 * P코어 기본 전력) + (CPU 부하에 따른 추가 전력)
         p_power = (p_time * self.p_core_ref.power_consumption) + (cpu_load * 0.05)
         p_edp = p_time * p_power
 
         # --- E-Core 예상치 계산 ---
-        e_time = (burst / self.e_core_ref.multiplier) + penalty_time
+        e_time = (burst / self.e_core_ref.multiplier) + non_compute_penalty
         e_power = (e_time * self.e_core_ref.power_consumption) + (cpu_load * 0.01)
         e_edp = e_time * e_power
 
-        # EDP가 더 작은 쪽이 고효율(정답)
+        # EDP(시간*전력)가 더 작은 쪽이 고효율 코어(정답)
         if p_edp < e_edp:
             return "P"
         else:

@@ -1,6 +1,6 @@
 import os
-from common.config import MODEL_PATH, FEATURES  # <--- FEATURES 추가
-
+import pandas as pd
+from common.config import MODEL_PATH, FEATURES
 
 class AISchedulerInterface:
     def __init__(self):
@@ -8,21 +8,17 @@ class AISchedulerInterface:
         if os.path.exists(MODEL_PATH):
             try:
                 import joblib
-
                 self.model = joblib.load(MODEL_PATH)
-                print(">>> AI 모델 로드 완료.")
-            except ImportError:
-                print(">>> joblib 없음. 규칙 기반 작동.")
-            except Exception:
-                print(">>> 모델 파일 로드 실패. 규칙 기반 작동.")
+                print(">>> AI 모델 파일 로드 성공.")
+            except Exception as e:
+                print(f">>> [오류] AI 모델 파일 로드 실패: {e}")
+                self.model = None
         else:
-            print(">>> AI 모델 없음. 규칙 기반 작동.")
+            print(">>> [경고] 학습된 AI 모델 파일이 없습니다. 규칙 기반으로 작동합니다.")
 
     def predict(self, features):
         if self.model:
             # 경고 해결: 리스트를 이름이 있는 DataFrame으로 변환
-            import pandas as pd
-
             features_df = pd.DataFrame([features], columns=FEATURES)
             return int(self.model.predict(features_df)[0])
 
