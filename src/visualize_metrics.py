@@ -12,7 +12,7 @@ CHART_METRICS = [
     ("Throughput (tasks/tick)", "throughput", "#059669"),
     ("Avg Turnaround Time", "avg_turnaround_time", "#dc2626"),
     ("Avg Waiting Time", "avg_waiting_time", "#ea580c"),
-    ("Remaining Queue Size", "remaining_queue_size", "#7c3aed"),
+    ("Ready Queue Size", "remaining_queue_size", "#7c3aed"),
     ("Power per Completed Task", "power_per_completed_task", "#0891b2"),
     ("Ideal Core Match Rate (%)", "ideal_core_match_rate", "#16a34a"),
 ]
@@ -30,12 +30,60 @@ TABLE_HEADERS = [
     "ideal_core_match_rate",
 ]
 
+TABLE_LABELS = {
+    "scenario": "시나리오",
+    "scheduler_policy": "Policy",
+    "completed_tasks": "Completed Tasks",
+    "completion_rate": "Completion Rate",
+    "throughput": "Throughput",
+    "avg_turnaround_time": "Avg Turnaround Time",
+    "avg_waiting_time": "Avg Waiting Time",
+    "remaining_queue_size": "Ready Queue",
+    "power_per_completed_task": "Power / Task",
+    "ideal_core_match_rate": "Core Match Rate",
+}
+
+POLICY_LABELS = {
+    "ai": "AI Hybrid",
+    "rule_based": "Rule-based",
+    "p_core_only": "P-Core 전용",
+    "e_core_only": "E-Core 전용",
+    "round_robin": "Round Robin",
+}
+
+SCENARIO_LABELS = {
+    "cpu_bound": "CPU-bound",
+    "io_bound": "I/O-bound",
+    "memory_bound": "Memory-bound",
+    "background": "Background",
+    "trick_io_intensive": "High CPU + I/O",
+    "trick_memory_intensive": "High CPU + Memory",
+    "mixed": "Mixed Workload",
+}
+
 
 def as_float(row, key):
     try:
         return float(row.get(key, 0))
     except (TypeError, ValueError):
         return 0.0
+
+
+def scenario_label(value):
+    return SCENARIO_LABELS.get(value, value.replace("_", " ").title())
+
+
+def policy_label(value):
+    return POLICY_LABELS.get(value, value)
+
+
+def display_value(row, header):
+    value = row.get(header, "-")
+    if header == "scenario":
+        return scenario_label(value)
+    if header == "scheduler_policy":
+        return policy_label(value)
+    return value
 
 
 def load_metrics():
@@ -96,18 +144,18 @@ def build_summary_cards(grouped_data):
     completed_diff = int(as_float(ai, "completed_tasks") - as_float(baseline, "completed_tasks"))
 
     cards = [
-        ("Scenario", ai.get("scenario", "-"), "text-slate-800"),
-        ("More Completed Tasks", f"+{completed_diff}", "text-blue-700"),
-        ("Turnaround Reduction", f"{turnaround_gain:.1f}%", "text-red-700"),
-        ("Waiting Time Reduction", f"{waiting_gain:.1f}%", "text-orange-700"),
-        ("Queue Reduction", f"{queue_gain:.1f}%", "text-purple-700"),
+        ("대표 시나리오", scenario_label(ai.get("scenario", "-")), "text-slate-800"),
+        ("Completed Tasks 증가", f"+{completed_diff}", "text-blue-700"),
+        ("Turnaround Time 감소", f"{turnaround_gain:.1f}%", "text-red-700"),
+        ("Waiting Time 감소", f"{waiting_gain:.1f}%", "text-orange-700"),
+        ("Ready Queue 감소", f"{queue_gain:.1f}%", "text-purple-700"),
         ("AI Core Match Rate", f"{as_float(ai, 'ideal_core_match_rate'):.1f}%", "text-green-700"),
     ]
 
     return "\n".join(
         f"""
         <div class="bg-white rounded-lg border border-slate-200 p-4">
-            <p class="text-xs font-semibold uppercase text-slate-500">{label}</p>
+            <p class="text-xs font-semibold text-slate-500">{label}</p>
             <p class="mt-1 text-2xl font-bold {color}">{value}</p>
         </div>
         """
@@ -120,7 +168,7 @@ def build_report(grouped_data, all_rows):
     chart_scripts = []
 
     for index, (scenario, rows) in enumerate(grouped_data.items()):
-        labels = [row["scheduler_policy"] for row in rows]
+        labels = [policy_label(row["scheduler_policy"]) for row in rows]
         chart_cards = []
 
         for metric_index, (title, key, color) in enumerate(CHART_METRICS):
@@ -141,7 +189,7 @@ def build_report(grouped_data, all_rows):
         scenario_sections.append(
             f"""
             <section class="mb-10">
-                <h2 class="mb-4 text-xl font-bold text-slate-800">{scenario.replace("_", " ").title()}</h2>
+                <h2 class="mb-4 text-xl font-bold text-slate-800">{scenario_label(scenario)}</h2>
                 <div class="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
                     {''.join(chart_cards)}
                 </div>
@@ -152,7 +200,7 @@ def build_report(grouped_data, all_rows):
     table_html = "\n".join(
         "<tr>"
         + "".join(
-            f'<td class="whitespace-nowrap px-3 py-3 text-slate-700">{row.get(header, "-")}</td>'
+            f'<td class="whitespace-nowrap px-3 py-3 text-slate-700">{display_value(row, header)}</td>'
             for header in TABLE_HEADERS
         )
         + "</tr>"
@@ -160,19 +208,19 @@ def build_report(grouped_data, all_rows):
     )
 
     return f"""<!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Hybrid Scheduler Dashboard</title>
+    <title>AI Hybrid Scheduler 성능 대시보드</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-slate-100 p-6">
     <main class="mx-auto max-w-7xl">
         <header class="mb-6">
-            <h1 class="text-3xl font-bold text-slate-900">AI Hybrid Scheduler Performance</h1>
-            <p class="mt-2 text-slate-600">Focused metrics: completion, latency, queue pressure, and model decision quality.</p>
+            <h1 class="text-3xl font-bold text-slate-900">AI Hybrid Scheduler 성능 분석</h1>
+            <p class="mt-2 text-slate-600">Completion, latency, queue pressure, AI decision quality를 중심으로 스케줄링 정책을 비교합니다.</p>
         </header>
 
         <section class="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-6">
@@ -189,7 +237,7 @@ def build_report(grouped_data, all_rows):
                 <table class="min-w-full divide-y divide-slate-200 text-sm">
                     <thead class="bg-slate-50">
                         <tr>
-                            {''.join(f'<th class="whitespace-nowrap px-3 py-3 text-left text-xs font-bold uppercase text-slate-500">{header.replace("_", " ")}</th>' for header in TABLE_HEADERS)}
+                            {''.join(f'<th class="whitespace-nowrap px-3 py-3 text-left text-xs font-bold text-slate-500">{TABLE_LABELS.get(header, header)}</th>' for header in TABLE_HEADERS)}
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
