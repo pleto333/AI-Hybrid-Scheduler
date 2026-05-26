@@ -14,3 +14,6 @@ class Process:
         }
         self.state = "READY"
         self.assigned_core = None
+        self.recorded_arrival_time = None
+        self.start_time = None
+        self.end_time = None

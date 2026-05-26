@@ -39,6 +39,7 @@ class OSSimulator:
 
         self.total_power_consumed = 0
         self.completed_tasks = []
+        self.ideal_core_matches = 0
 
     def run(self, max_ticks=500):
         print(
@@ -104,10 +105,15 @@ class OSSimulator:
 
     def dispatch_process(self, proc, assigned_core):
         self.ready_queue.remove(proc)
+        if proc.start_time is None:
+            proc.start_time = self.tick
         Dispatcher.dispatch(proc, assigned_core)
         self.assignment_counts[assigned_core.core_type] += 1
 
         ideal_target = self.scheduler.calculate_ideal_core(proc)
+        if assigned_core.core_type == ideal_target:
+            self.ideal_core_matches += 1
+
         self.logger.log(
             list(proc.features.values()),
             1 if ideal_target == "P" else 0,
@@ -133,10 +139,20 @@ class OSSimulator:
             task.end_time - task.recorded_arrival_time
             for task in self.completed_tasks
         ]
+        waiting_times = [
+            task.start_time - task.recorded_arrival_time
+            for task in self.completed_tasks
+            if task.start_time is not None
+        ]
 
         avg_turnaround = (
             sum(turnaround_times) / len(turnaround_times)
             if turnaround_times
+            else 0
+        )
+        avg_waiting = (
+            sum(waiting_times) / len(waiting_times)
+            if waiting_times
             else 0
         )
         total_assignments = sum(self.assignment_counts.values())
@@ -162,13 +178,17 @@ class OSSimulator:
             if completed_count
             else 0
         )
+        ideal_core_match_rate = (
+            self.ideal_core_matches / total_assignments * 100
+            if total_assignments
+            else 0
+        )
 
         return {
             "scenario": self.scenario,
             "scheduler_policy": self.scheduler_policy,
             "random_seed": self.random_seed,
             "total_ticks": self.tick,
-            "total_power_consumed": round(self.total_power_consumed, 2),
             "generated_tasks": self.generated_tasks,
             "completed_tasks": completed_count,
             "completion_rate": round(completion_rate, 2),
@@ -177,6 +197,8 @@ class OSSimulator:
             "remaining_queue_size": len(self.ready_queue),
             "running_tasks": sum(1 for core in self.cores if core.is_busy()),
             "avg_turnaround_time": round(avg_turnaround, 2),
+            "avg_waiting_time": round(avg_waiting, 2),
+            "ideal_core_match_rate": round(ideal_core_match_rate, 2),
             "p_core_assignments": self.assignment_counts["P"],
             "e_core_assignments": self.assignment_counts["E"],
             "p_core_ratio": round(p_ratio, 2),
